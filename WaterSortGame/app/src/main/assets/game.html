@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>彩色倒水游戏 🎨</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+  }
+
+  /* ===== SCREENS ===== */
+  .screen { display: none; width: 100%; max-width: 480px; min-height: 100vh; flex-direction: column; align-items: center; padding: 20px 16px; }
+  .screen.active { display: flex; }
+
+  /* ===== HOME SCREEN ===== */
+  #homeScreen { justify-content: center; }
+  .game-title {
+    font-size: 52px; font-weight: 900; color: white;
+    text-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+    text-align: center; margin-bottom: 10px; line-height: 1.1;
+  }
+  .game-subtitle { font-size: 18px; color: rgba(255,255,255,0.9); text-align: center; margin-bottom: 40px; }
+  .home-bottles { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; }
+  .home-bottle { width: 40px; height: 80px; border-radius: 6px 6px 8px 8px; border: 3px solid rgba(255,255,255,0.5); overflow: hidden; display: flex; flex-direction: column-reverse; }
+  .home-bottle-fill { flex: 1; }
+  .big-btn {
+    background: white; color: #764ba2; border: none; border-radius: 50px;
+    font-size: 24px; font-weight: 900; padding: 18px 60px;
+    cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    transition: transform 0.1s, box-shadow 0.1s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .big-btn:active { transform: scale(0.95); box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
+
+  /* ===== LEVEL SELECT SCREEN ===== */
+  #levelScreen { justify-content: flex-start; padding-top: 24px; }
+  .screen-title { font-size: 28px; font-weight: 900; color: white; text-align: center; margin-bottom: 20px; }
+  .level-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+    width: 100%; max-width: 440px;
+  }
+  .level-btn {
+    aspect-ratio: 1; border-radius: 16px; border: none; font-size: 18px; font-weight: 900;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: transform 0.1s; position: relative; gap: 2px;
+  }
+  .level-btn:active { transform: scale(0.92); }
+  .level-btn.locked { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.4); cursor: default; }
+  .level-btn.unlocked { background: white; color: #764ba2; }
+  .level-btn.completed { background: #4caf50; color: white; }
+  .level-btn.current { background: #FFD700; color: #333; box-shadow: 0 0 0 3px white; }
+  .level-stars { font-size: 10px; line-height: 1; }
+  .back-btn {
+    background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 50px; font-size: 16px; font-weight: 700; padding: 10px 28px;
+    cursor: pointer; margin-bottom: 16px; align-self: flex-start;
+  }
+  .back-btn:active { background: rgba(255,255,255,0.35); }
+
+  /* ===== GAME SCREEN ===== */
+  #gameScreen { justify-content: flex-start; padding-top: 16px; }
+  .game-header { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 16px; }
+  .level-label { font-size: 22px; font-weight: 900; color: white; }
+  .moves-label { font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.85); }
+  .hint-btn {
+    background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 50%; font-size: 22px; width: 44px; height: 44px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .hint-btn:active { background: rgba(255,255,255,0.4); }
+
+  /* Bottles container */
+  .bottles-area {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    justify-content: center; align-items: flex-end;
+    width: 100%; padding: 12px 0; flex: 1;
+    min-height: 280px;
+  }
+
+  /* Single bottle */
+  .bottle-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer;
+  }
+  .bottle-svg-container {
+    position: relative; transition: transform 0.15s;
+  }
+  .bottle-wrap.selected .bottle-svg-container { transform: translateY(-16px); }
+  .bottle-wrap.selected .bottle-glow { filter: drop-shadow(0 0 8px rgba(255,255,0,0.9)); }
+
+  /* SVG bottle */
+  .bottle-svg { overflow: visible; }
+
+  /* Game buttons row */
+  .game-btns { display: flex; gap: 10px; width: 100%; justify-content: center; margin-top: 8px; }
+  .game-btn {
+    flex: 1; max-width: 150px; background: rgba(255,255,255,0.2);
+    color: white; border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 50px; font-size: 16px; font-weight: 700; padding: 12px 8px;
+    cursor: pointer; text-align: center;
+  }
+  .game-btn:active { background: rgba(255,255,255,0.4); }
+  .game-btn.primary { background: white; color: #764ba2; border-color: white; }
+
+  /* ===== WIN OVERLAY ===== */
+  #winOverlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 100;
+    align-items: center; justify-content: center; flex-direction: column;
+  }
+  #winOverlay.active { display: flex; }
+  .win-card {
+    background: white; border-radius: 28px; padding: 36px 32px;
+    text-align: center; max-width: 320px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .win-emoji { font-size: 72px; margin-bottom: 8px; }
+  .win-title { font-size: 30px; font-weight: 900; color: #764ba2; margin-bottom: 6px; }
+  .win-subtitle { font-size: 16px; color: #888; margin-bottom: 24px; }
+  .win-stars { font-size: 40px; margin-bottom: 20px; }
+  .win-btns { display: flex; flex-direction: column; gap: 10px; }
+  .win-btn {
+    border: none; border-radius: 50px; font-size: 18px; font-weight: 900;
+    padding: 14px; cursor: pointer; transition: transform 0.1s;
+  }
+  .win-btn:active { transform: scale(0.95); }
+  .win-btn.next { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+  .win-btn.menu { background: #f0f0f0; color: #555; }
+
+  /* Confetti */
+  .confetti-piece {
+    position: fixed; width: 10px; height: 10px; border-radius: 2px;
+    animation: confettiFall linear forwards;
+    pointer-events: none; z-index: 99;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* Pouring animation */
+  @keyframes pourShake {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-8deg); }
+    75% { transform: rotate(8deg); }
+  }
+  .pouring { animation: pourShake 0.4s ease-in-out; }
+
+  /* TV remote focus highlight */
+  .tv-focused { outline: 4px solid #FFD700 !important; outline-offset: 3px; }
+  .bottle-wrap.tv-focused .bottle-svg-container { transform: translateY(-14px) scale(1.04); }
+</style>
+</head>
+<body>
+
+<!-- ===== HOME SCREEN ===== -->
+<div id="homeScreen" class="screen active">
+  <div class="game-title">🌈 倒水<br>排排队</div>
+  <div class="game-subtitle">把相同颜色的水倒在一起！</div>
+  <div class="home-bottles">
+    <div class="home-bottle"><div class="home-bottle-fill" style="background:#FF6B6B;height:75%"></div></div>
+    <div class="home-bottle"><div class="home-bottle-fill" style="background:#4ECDC4;height:50%"></div></div>
+    <div class="home-bottle"><div class="home-bottle-fill" style="background:#FFE66D;height:100%"></div></div>
+    <div class="home-bottle"><div class="home-bottle-fill" style="background:#A8E6CF;height:60%"></div></div>
+    <div class="home-bottle"><div class="home-bottle-fill" style="background:#FF8B94;height:85%"></div></div>
+  </div>
+  <button class="big-btn" onclick="showLevelSelect()">🎮 开始游戏</button>
+</div>
+
+<!-- ===== LEVEL SELECT SCREEN ===== -->
+<div id="levelScreen" class="screen">
+  <div class="screen-title">🗺️ 选择关卡</div>
+  <div class="level-grid" id="levelGrid"></div>
+  <div style="height:16px"></div>
+  <button class="back-btn" onclick="showHome()">← 返回</button>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="gameScreen" class="screen">
+  <div class="game-header">
+    <button class="back-btn" style="margin:0;padding:10px 16px;font-size:15px" onclick="showLevelSelect()">← 关卡</button>
+    <div class="level-label" id="levelLabel">第 1 关</div>
+    <div class="moves-label" id="movesLabel">步数: 0</div>
+    <button class="hint-btn" onclick="undoMove()" title="撤销">↩</button>
+  </div>
+  <div class="bottles-area" id="bottlesArea"></div>
+  <div class="game-btns">
+    <button class="game-btn" onclick="resetLevel()">🔄 重来</button>
+    <button class="game-btn primary" onclick="showLevelSelect()">📋 关卡</button>
+  </div>
+</div>
+
+<!-- ===== WIN OVERLAY ===== -->
+<div id="winOverlay">
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">太棒了！</div>
+    <div class="win-subtitle" id="winSubtitle">完成啦！</div>
+    <div class="win-stars" id="winStars">⭐⭐⭐</div>
+    <div class="win-btns">
+      <button class="win-btn next" id="nextLevelBtn" onclick="nextLevel()">下一关 ➡</button>
+      <button class="win-btn menu" onclick="hideWin(); showLevelSelect()">📋 返回关卡</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// COLORS
+// =============================================
+const COLORS = [
+  { id: 'red',    hex: '#FF4757', name: '红色' },
+  { id: 'blue',   hex: '#2196F3', name: '蓝色' },
+  { id: 'green',  hex: '#4CAF50', name: '绿色' },
+  { id: 'yellow', hex: '#FFD700', name: '黄色' },
+  { id: 'orange', hex: '#FF9800', name: '橙色' },
+  { id: 'purple', hex: '#9C27B0', name: '紫色' },
+  { id: 'pink',   hex: '#E91E63', name: '粉色' },
+  { id: 'cyan',   hex: '#00BCD4', name: '青色' },
+  { id: 'lime',   hex: '#8BC34A', name: '草绿' },
+  { id: 'brown',  hex: '#795548', name: '棕色' },
+];
+
+// Bottle capacity (segments per bottle)
+const CAPACITY = 4;
+
+// =============================================
+// LEVEL GENERATION
+// =============================================
+function generateLevel(levelNum) {
+  // difficulty scaling
+  let numColors, extraEmpty;
+  if (levelNum <= 5)       { numColors = 2; extraEmpty = 1; }
+  else if (levelNum <= 10) { numColors = 3; extraEmpty = 1; }
+  else if (levelNum <= 15) { numColors = 3; extraEmpty = 2; }
+  else if (levelNum <= 20) { numColors = 4; extraEmpty = 1; }
+  else if (levelNum <= 25) { numColors = 4; extraEmpty = 2; }
+  else if (levelNum <= 30) { numColors = 5; extraEmpty = 1; }
+  else if (levelNum <= 35) { numColors = 5; extraEmpty = 2; }
+  else if (levelNum <= 40) { numColors = 6; extraEmpty = 1; }
+  else if (levelNum <= 45) { numColors = 6; extraEmpty = 2; }
+  else                     { numColors = 7; extraEmpty = 2; }
+
+  const colorSubset = COLORS.slice(0, numColors).map(c => c.id);
+
+  // Create solved state first: each bottle has 4 of same color
+  let solvedState = colorSubset.map(c => [c, c, c, c]);
+  // Add empty bottles
+  for (let i = 0; i < extraEmpty; i++) solvedState.push([]);
+
+  // Shuffle the solved state to create puzzle
+  // We'll randomly pour colors around to shuffle it
+  let state = solvedState.map(b => [...b]);
+  const shuffleSteps = 20 + levelNum * 2;
+
+  for (let s = 0; s < shuffleSteps; s++) {
+    // pick two random different bottles
+    const from = Math.floor(Math.random() * state.length);
+    let to = Math.floor(Math.random() * state.length);
+    if (to === from) continue;
+    // try to pour from -> to (reverse of actual pour)
+    if (state[from].length === 0) continue;
+    if (state[to].length >= CAPACITY) continue;
+    const topColor = state[from][state[from].length - 1];
+    // pour one segment
+    state[from].pop();
+    state[to].push(topColor);
+  }
+
+  // make sure it's not already solved
+  let already = isSolved(state);
+  if (already) {
+    // just swap two colors
+    if (state.length >= 2 && state[0].length > 0 && state[1].length > 0) {
+      const tmp = state[0].pop();
+      state[0].push(state[1].pop());
+      state[1].push(tmp);
+    }
+  }
+
+  return state;
+}
+
+function isSolved(state) {
+  for (const bottle of state) {
+    if (bottle.length === 0) continue;
+    if (bottle.length !== CAPACITY) return false;
+    if (!bottle.every(c => c === bottle[0])) return false;
+  }
+  return true;
+}
+
+function canPour(state, from, to) {
+  if (from === to) return false;
+  const src = state[from];
+  const dst = state[to];
+  if (src.length === 0) return false;
+  if (dst.length >= CAPACITY) return false;
+  if (dst.length === 0) return true;
+  return src[src.length - 1] === dst[dst.length - 1];
+}
+
+function doPour(state, from, to) {
+  const src = state[from];
+  const dst = state[to];
+  const color = src[src.length - 1];
+  while (src.length > 0 && src[src.length - 1] === color && dst.length < CAPACITY) {
+    dst.push(src.pop());
+  }
+}
+
+// =============================================
+// GAME STATE
+// =============================================
+let currentLevel = 1;
+let gameState = [];
+let history = [];
+let moves = 0;
+let selectedBottle = -1;
+let completedLevels = new Set();
+let levelStars = {};
+
+// Load saved progress
+try {
+  const saved = JSON.parse(localStorage.getItem('waterSortProgress') || '{}');
+  completedLevels = new Set(saved.completed || []);
+  levelStars = saved.stars || {};
+} catch(e) {}
+
+function saveProgress() {
+  try {
+    localStorage.setItem('waterSortProgress', JSON.stringify({
+      completed: [...completedLevels],
+      stars: levelStars
+    }));
+  } catch(e) {}
+}
+
+// =============================================
+// SCREENS
+// =============================================
+function showHome() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('homeScreen').classList.add('active');
+}
+
+function showLevelSelect() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('levelScreen').classList.add('active');
+  renderLevelGrid();
+}
+
+function showGame(level) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('gameScreen').classList.add('active');
+  startLevel(level);
+}
+
+// =============================================
+// LEVEL GRID
+// =============================================
+function renderLevelGrid() {
+  const grid = document.getElementById('levelGrid');
+  grid.innerHTML = '';
+  const maxUnlocked = Math.max(...[...completedLevels], 0) + 2;
+  for (let i = 1; i <= 50; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn';
+    const isCompleted = completedLevels.has(i);
+    const isUnlocked = i <= maxUnlocked || isCompleted;
+    const isCurrent = i === currentLevel;
+    if (isCompleted) btn.classList.add('completed');
+    else if (!isUnlocked) btn.classList.add('locked');
+    else if (isCurrent) btn.classList.add('current');
+    else btn.classList.add('unlocked');
+
+    const stars = levelStars[i] || 0;
+    let starsStr = '';
+    if (isCompleted) {
+      starsStr = '⭐'.repeat(stars);
+    }
+    btn.innerHTML = `<span>${i}</span>${starsStr ? `<span class="level-stars">${starsStr}</span>` : ''}`;
+    if (isUnlocked || isCompleted) {
+      btn.onclick = () => showGame(i);
+    }
+    grid.appendChild(btn);
+  }
+}
+
+// =============================================
+// GAME LOGIC
+// =============================================
+function startLevel(level) {
+  currentLevel = level;
+  moves = 0;
+  selectedBottle = -1;
+  history = [];
+  gameState = generateLevel(level);
+  document.getElementById('levelLabel').textContent = `第 ${level} 关`;
+  document.getElementById('movesLabel').textContent = `步数: 0`;
+  renderBottles();
+}
+
+function resetLevel() {
+  history = [];
+  moves = 0;
+  selectedBottle = -1;
+  gameState = generateLevel(currentLevel);
+  document.getElementById('movesLabel').textContent = `步数: 0`;
+  renderBottles();
+}
+
+function undoMove() {
+  if (history.length === 0) return;
+  gameState = history.pop();
+  moves = Math.max(0, moves - 1);
+  selectedBottle = -1;
+  document.getElementById('movesLabel').textContent = `步数: ${moves}`;
+  renderBottles();
+}
+
+// =============================================
+// BOTTLE RENDERING
+// =============================================
+const COLOR_MAP = {};
+COLORS.forEach(c => COLOR_MAP[c.id] = c.hex);
+
+function getBottleSize(numBottles) {
+  if (numBottles <= 4) return { w: 62, h: 140 };
+  if (numBottles <= 6) return { w: 56, h: 130 };
+  if (numBottles <= 8) return { w: 52, h: 122 };
+  return { w: 46, h: 110 };
+}
+
+function renderBottles() {
+  const area = document.getElementById('bottlesArea');
+  area.innerHTML = '';
+  const n = gameState.length;
+  const { w, h } = getBottleSize(n);
+
+  gameState.forEach((bottle, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'bottle-wrap' + (selectedBottle === idx ? ' selected' : '');
+    wrap.onclick = () => handleBottleClick(idx);
+
+    const svgContainer = document.createElement('div');
+    svgContainer.className = 'bottle-svg-container';
+
+    // Build SVG bottle
+    const bw = w, bh = h;
+    const neckW = bw * 0.42, neckH = bh * 0.18;
+    const bodyW = bw, bodyH = bh * 0.78;
+    const bodyY = bh - bodyH;
+    const neckX = (bw - neckW) / 2;
+    const segH = bodyH / CAPACITY;
+
+    // clip path for body
+    const clipId = `clip${idx}`;
+
+    let svgContent = `<svg class="bottle-svg bottle-glow" width="${bw}" height="${bh}" viewBox="0 0 ${bw} ${bh}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="${clipId}">
+          <rect x="0" y="${bodyY}" width="${bw}" height="${bodyH}" rx="8" ry="8"/>
+        </clipPath>
+      </defs>`;
+
+    // Body background (empty bottle)
+    svgContent += `<rect x="0" y="${bodyY}" width="${bw}" height="${bodyH}" rx="8" ry="8" fill="rgba(255,255,255,0.18)"/>`;
+
+    // Water segments (bottom up)
+    const segs = bottle.length;
+    for (let s = 0; s < segs; s++) {
+      const color = COLOR_MAP[bottle[s]] || '#ccc';
+      const segY = bodyY + bodyH - (s + 1) * segH;
+      svgContent += `<rect x="1" y="${segY}" width="${bw - 2}" height="${segH + 0.5}" fill="${color}" clip-path="url(#${clipId})"/>`;
+      // shine on top of each segment
+      if (s === segs - 1) {
+        svgContent += `<rect x="4" y="${segY + 2}" width="${bw * 0.3}" height="4" rx="2" fill="rgba(255,255,255,0.35)" clip-path="url(#${clipId})"/>`;
+      }
+    }
+
+    // Body border
+    svgContent += `<rect x="0.5" y="${bodyY + 0.5}" width="${bw - 1}" height="${bodyH - 1}" rx="8" ry="8" fill="none" stroke="${selectedBottle === idx ? '#FFD700' : 'rgba(255,255,255,0.6)'}" stroke-width="${selectedBottle === idx ? 3 : 1.5}"/>`;
+
+    // Neck
+    svgContent += `<rect x="${neckX}" y="2" width="${neckW}" height="${neckH + 2}" rx="4" ry="4" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>`;
+
+    // Cap (top of neck)
+    const capW = neckW + 8, capX = neckX - 4;
+    svgContent += `<rect x="${capX}" y="0" width="${capW}" height="8" rx="4" ry="4" fill="rgba(255,255,255,0.3)" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>`;
+
+    svgContent += `</svg>`;
+
+    svgContainer.innerHTML = svgContent;
+    wrap.appendChild(svgContainer);
+    area.appendChild(wrap);
+  });
+}
+
+// =============================================
+// CLICK HANDLING
+// =============================================
+function handleBottleClick(idx) {
+  if (selectedBottle === -1) {
+    // Select source
+    if (gameState[idx].length === 0) return;
+    // Don't select a completed bottle
+    const b = gameState[idx];
+    if (b.length === CAPACITY && b.every(c => c === b[0])) return;
+    selectedBottle = idx;
+    renderBottles();
+  } else {
+    if (idx === selectedBottle) {
+      selectedBottle = -1;
+      renderBottles();
+      return;
+    }
+    if (canPour(gameState, selectedBottle, idx)) {
+      // Save history
+      history.push(gameState.map(b => [...b]));
+      if (history.length > 20) history.shift();
+
+      // Animate pouring
+      const fromEl = document.querySelectorAll('.bottle-wrap')[selectedBottle];
+      if (fromEl) {
+        fromEl.querySelector('.bottle-svg-container').classList.add('pouring');
+        setTimeout(() => fromEl.querySelector('.bottle-svg-container')?.classList.remove('pouring'), 400);
+      }
+
+      doPour(gameState, selectedBottle, idx);
+      moves++;
+      document.getElementById('movesLabel').textContent = `步数: ${moves}`;
+      selectedBottle = -1;
+
+      setTimeout(() => {
+        renderBottles();
+        if (isSolved(gameState)) {
+          setTimeout(() => showWin(), 300);
+        }
+      }, 100);
+    } else {
+      // Invalid move: shake
+      const fromEl = document.querySelectorAll('.bottle-wrap')[selectedBottle];
+      if (fromEl) {
+        fromEl.style.animation = 'shakewrap 0.3s';
+        setTimeout(() => { if(fromEl) fromEl.style.animation = ''; }, 300);
+      }
+      selectedBottle = -1;
+      renderBottles();
+    }
+  }
+}
+
+// =============================================
+// WIN
+// =============================================
+function showWin() {
+  completedLevels.add(currentLevel);
+  // Stars: 3 = under 10 extra moves, 2 = under 20, 1 = completed
+  const bonus = Math.max(3, 5 + currentLevel); // par moves
+  let stars = 1;
+  if (moves <= bonus) stars = 3;
+  else if (moves <= bonus + 5) stars = 2;
+  levelStars[currentLevel] = Math.max(levelStars[currentLevel] || 0, stars);
+  saveProgress();
+
+  document.getElementById('winSubtitle').textContent = `第 ${currentLevel} 关完成！用了 ${moves} 步`;
+  document.getElementById('winStars').textContent = '⭐'.repeat(stars);
+  const nextBtn = document.getElementById('nextLevelBtn');
+  if (currentLevel >= 50) {
+    nextBtn.style.display = 'none';
+  } else {
+    nextBtn.style.display = '';
+  }
+  document.getElementById('winOverlay').classList.add('active');
+  launchConfetti();
+}
+
+function hideWin() {
+  document.getElementById('winOverlay').classList.remove('active');
+  // remove confetti
+  document.querySelectorAll('.confetti-piece').forEach(c => c.remove());
+}
+
+function nextLevel() {
+  hideWin();
+  if (currentLevel < 50) showGame(currentLevel + 1);
+  else showLevelSelect();
+}
+
+// =============================================
+// CONFETTI
+// =============================================
+const CONF_COLORS = ['#FF6B6B','#4ECDC4','#FFD93D','#6BCB77','#4D96FF','#FF6BFF','#FFB347'];
+function launchConfetti() {
+  for (let i = 0; i < 60; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.top = '-10px';
+      el.style.background = CONF_COLORS[Math.floor(Math.random() * CONF_COLORS.length)];
+      el.style.width = (6 + Math.random() * 8) + 'px';
+      el.style.height = (6 + Math.random() * 8) + 'px';
+      el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      el.style.animationDelay = '0s';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }, i * 40);
+  }
+}
+
+// Shake animation for invalid moves
+const style = document.createElement('style');
+style.textContent = `
+@keyframes shakewrap {
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)}
+  60%{transform:translateX(-4px)}
+  80%{transform:translateX(4px)}
+}`;
+document.head.appendChild(style);
+
+// =============================================
+// INIT
+// =============================================
+showHome();
+
+// =============================================
+// TV REMOTE / D-PAD NAVIGATION
+// =============================================
+let tvFocusIdx = 0;
+
+function getTvFocusables() {
+  const screen = document.querySelector('.screen.active');
+  if (!screen) return [];
+  const els = screen.querySelectorAll('button:not([disabled]), .bottle-wrap');
+  return Array.from(els);
+}
+
+function setTvFocus(idx) {
+  const items = getTvFocusables();
+  items.forEach(el => el.classList.remove('tv-focused'));
+  if (items.length === 0) return;
+  tvFocusIdx = ((idx % items.length) + items.length) % items.length;
+  items[tvFocusIdx].classList.add('tv-focused');
+  items[tvFocusIdx].scrollIntoView({ block: 'nearest' });
+}
+
+function moveFocus(delta) {
+  const items = getTvFocusables();
+  if (items.length === 0) return;
+  // reset if no focused item
+  const hasFocus = items.some(el => el.classList.contains('tv-focused'));
+  if (!hasFocus) { setTvFocus(0); return; }
+  setTvFocus(tvFocusIdx + delta);
+}
+
+// Trigger click on focused element (called from Android)
+function tvConfirm() {
+  const items = getTvFocusables();
+  if (items.length > 0 && items[tvFocusIdx]) {
+    items[tvFocusIdx].click();
+  }
+}
+
+// Re-initialize focus when screen changes
+const origShowHome = showHome;
+const origShowLevelSelect = showLevelSelect;
+const origShowGame = showGame;
+// Wrap screen transitions to reset TV focus
+function wrapScreen(fn) {
+  return function(...args) {
+    fn.apply(this, args);
+    tvFocusIdx = 0;
+    requestAnimationFrame(() => {
+      const items = getTvFocusables();
+      if (items.length > 0) items[0].classList.add('tv-focused');
+    });
+  };
+}
+// Keyboard support (for desktop testing)
+document.addEventListener('keydown', function(e) {
+  switch(e.key) {
+    case 'ArrowLeft':  moveFocus(-1); e.preventDefault(); break;
+    case 'ArrowRight': moveFocus(1);  e.preventDefault(); break;
+    case 'ArrowUp':    moveFocus(-5); e.preventDefault(); break;
+    case 'ArrowDown':  moveFocus(5);  e.preventDefault(); break;
+    case 'Enter': case ' ': tvConfirm(); e.preventDefault(); break;
+  }
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+<resources>
+    <!-- 基础主题：全屏无标题栏，适用于手机和电视 -->
+    <style name="AppTheme" parent="android:Theme.Material.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+</resources>
