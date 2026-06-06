@@ -28,9 +28,17 @@ jobs:
 
       - name: Install Gradle
         run: |
-          wget https://services.gradle.org/distributions/gradle-8.5-bin.zip -O /tmp/gradle.zip
+          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip -O /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /opt
           echo "/opt/gradle-8.5/bin" >> $GITHUB_PATH
+
+      - name: Create gradle.properties
+        run: |
+          cat > gradle.properties << 'EOF'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOF
 
       - name: Create local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
